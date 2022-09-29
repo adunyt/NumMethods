@@ -1,45 +1,125 @@
-﻿//Console.WriteLine("Отрезок изоляции - a,b >> ");
-//var isolateRange = Console.ReadLine();
-//var test = isolateRange.Split(",");
+﻿using Spectre.Console;
+using Expr = MathNet.Symbolics.SymbolicExpression;
 
-int a = 1;
-int b = 2;
-double e = 0.001;
+int a;
+int b;
+int acc;
+double e;
 int i = 1;
-int acc = 4;
-MidpointRounding mid = MidpointRounding.ToEven;
+bool isRunning = true;
+Func<double, double> f;
+Func<double, double> firstDiffF; // первая производная
+Func<double, double> secondDiffF; // вторая производная
 
-bi(a, "a", b, "b", e, i);
-
-
-double f(double x)
+while (isRunning)
 {
-    //double result = Math.Round(Math.Pow(x, 3) - x - 1, acc, mid); // стандартный a = 1, b = 2
-    //double result = Math.Round(Math.Pow(x, 3) + 8 * x + 4, 5); // матвей
-    //double result = Math.Round(Math.Pow(x, 3) + 3 * x - 7, acc); // андрей
-    //double result = Math.Round(Math.Pow(x, 3) + 2 * x - 7, acc, mid); // моё
-    //double result = Math.Round(Math.Pow(x, 3) + 15 * x + 1, acc, mid); // максон
-    //double result = Math.Round(Math.Pow(x, 3) - 4 * x - 2, acc, mid); // софа
-    double result = Math.Round(Math.Pow(x, 3) + x - 3.5, acc, mid); // ??
-    return result;
+    Console.Clear();
+    string userInput = AnsiConsole.Prompt(new TextPrompt<string>("Введите ваше [blue]уравнение[/] -> ").Validate(userInput =>
+    {
+        ValidationResult result = ValidationResult.Success();
+        try
+        {
+            var textF = Expr.Parse(userInput).Compile("x");
+        }
+        catch (Exception ex)
+        {
+            result = ValidationResult.Error($"[red]Не могу обработать уравнение[/]");
+        }
+        return result;
+    }));
+    Expr funcX = Expr.Parse(userInput);
+    f = funcX.Compile("x");
+    AnsiConsole.Status()
+        .Start("Вычисляем производные...", ctx => {
+            ctx.SpinnerStyle(Style.Parse("blue"));
+            var firstDiffFExpr = funcX.Differentiate("x");
+            firstDiffFExpr.ToString();
+            firstDiffF = firstDiffFExpr.Compile("x");
+            secondDiffF = firstDiffFExpr.Differentiate("x").Compile("x");
+        });
+
+    a = AnsiConsole.Ask<int>("Введи [red]a[/] -> ");
+    b = AnsiConsole.Ask<int>("Введи [red]b[/] -> ");
+    acc = AnsiConsole.Prompt(new TextPrompt<int>("Введи до какого знака после запятой округлять -> ").DefaultValue(4).Validate(acc =>
+    {
+        ValidationResult result;
+        if (acc > 15)
+        {
+            result = ValidationResult.Error("Не больше 15");
+        }
+        else if (acc < 0)
+        {
+            result = ValidationResult.Error("Не меньше 1");
+        }
+        else
+        {
+            result = ValidationResult.Success();
+        }
+        return result;
+    }));
+    e = AnsiConsole.Prompt(new TextPrompt<double>("Введи требуемую точность (e) -> ").DefaultValue(0.001));
+
+    if (canUse(a, b))
+    {
+        var method = AnsiConsole.Prompt(
+        new SelectionPrompt<string>()
+            .Title("Какой метод хотите использовать?")
+            .PageSize(5)
+            .AddChoices(new[] {
+            "Половинного деления", "Хорд", "Касательных", "Ньютона"
+            }));
+
+        switch (method)
+        {
+            case "Половинного деления":
+                bi(a, "a", b, "b", e, i);
+                break;
+            case "Хорд":
+                secant(a, "a", b, "b", e, b, i);
+                break;
+            case "Касательных":
+                Console.WriteLine("Пока нет");
+                //kasa(a, "a", b, "b", e, b, i);
+                break;
+            case "Ньютона":
+                Console.WriteLine("Пока нет");
+                break;
+        }
+    }
+
+    bool restart = AnsiConsole.Confirm("\nПовторить?");
+    if (!restart)
+    {
+        isRunning = false;
+    }
 }
 
-double fi(double x) 
+bool canUse(double a, double b)
 {
-    double y = Math.Round(3 * Math.Pow(x,2) + 2, acc, mid);
-    return y;
+    double result = f(a) * f(b);
+    Console.Write($"\nf(a) * f(b) ");
+    if (result >= 0)
+    {
+        Console.WriteLine(" > 0 - нельзя применить метод, либо выбран неправильный отрезок\n");
+        return false;
+    }
+    else
+    {
+        Console.WriteLine(" < 0 - можно применить метод\n");
+        return true;
+    }
 }
 
 void bi(double a, string aName, double b, string bName, double e, int i)
 {
     string newAName = "";
     string newBName = "";
-    double c = Math.Round((a + b) / 2, acc, mid);
+    double c = Math.Round((a + b) / 2, acc);
     string cName = $"c{i}";
     Console.WriteLine($"{cName} = {aName}+{bName} / 2 = {a}+{b} / 2 = {c}");
-    double f1 = f(c);
-    Console.Write($"f({cName}) = f({c}) = {c}^3 + {c} + 3.5  = {f1}");
-    if (f1 > 0)
+    double fX = Math.Round(f(c), acc);
+    Console.Write($"f({cName}) = f({c}) = {fX}");
+    if (fX > 0)
     {
         Console.WriteLine(" > 0");
     }
@@ -81,30 +161,30 @@ void bi(double a, string aName, double b, string bName, double e, int i)
         Console.WriteLine($" > 0 - условие не выполняется на [{range2[0]}, {range2[1]}]");
     }
     Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
-    Console.Write($"\t |{nextRangeDesc}| = |{nextRange[1]} - {nextRange[0]}| = {Math.Round(nextRange[1] - nextRange[0], 5, mid)}");
-    if (Math.Round(nextRange[1] - nextRange[0], 5, mid) >= e) // проверка на выполнение заданной точности
+    Console.Write($"\t |{nextRangeDesc}| = |{nextRange[1]} - {nextRange[0]}| = {Math.Round(nextRange[1] - nextRange[0], 5)}");
+    if (Math.Round(nextRange[1] - nextRange[0], 5) >= e) // проверка на выполнение заданной точности
     {
         Console.WriteLine($" >= {e}");
         Console.WriteLine("Заданная точность не достигнута\n");
         i++;
         bi(nextRange[0], newAName, nextRange[1], newBName, e, i);
     }
-    else if (Math.Round(nextRange[1] - nextRange[0], 5, mid) < e)
+    else if (Math.Round(nextRange[1] - nextRange[0], 5) < e)
     {
         Console.WriteLine($" < {e}");
         Console.WriteLine($"x = {c}");
     }
 }
 
-void chord(double a, string aName, double b, string bName, double e, double prevX, int i)
+void secant(double a, string aName, double b, string bName, double e, double prevX, int i)
 {
     string newAName = "";
     string newBName = "";
-    double x = a - (((b - a) * f(a)) / (f(b) - f(a)));
-    x = Math.Round(x, acc, mid);
     string xName = $"x{i}";
+    double x = a - (((b - a) * f(a)) / (f(b) - f(a)));
+    x = Math.Round(x, acc);
+    double fX = Math.Round(f(x), acc);
     Console.WriteLine($"{xName} = {x}");
-    double fX = f(x);
     Console.Write($"f({xName}) = f({x}) = {fX}");
     if (fX > 0)
     {
@@ -129,7 +209,7 @@ void chord(double a, string aName, double b, string bName, double e, double prev
         nextRange = range1;
         nextRangeDesc = $"{aName} - {xName}";
         newAName = aName;
-        newBName = xName;
+        newBName = xName; // не меняется
     }
     else if (condition1 == 0)
     {
@@ -137,7 +217,7 @@ void chord(double a, string aName, double b, string bName, double e, double prev
         nextRange = range1;
         nextRangeDesc = $"{aName} - {xName}";
         newAName = aName;
-        newBName = xName;
+        newBName = xName; // не меняется
     }
     else
     {
@@ -152,7 +232,7 @@ void chord(double a, string aName, double b, string bName, double e, double prev
         nextRange = range2;
         nextRangeDesc = $"{xName} - {bName}";
         newAName = xName;
-        newBName = bName;
+        newBName = bName; // не меняется
     }
     else if (condition2 == 0)
     {
@@ -160,7 +240,7 @@ void chord(double a, string aName, double b, string bName, double e, double prev
         nextRange = range2;
         nextRangeDesc = $"{xName} - {bName}";
         newAName = xName;
-        newBName = bName;
+        newBName = bName; // не меняется
     }
     else
     {
@@ -168,14 +248,14 @@ void chord(double a, string aName, double b, string bName, double e, double prev
     }
 
     Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
-    double deltaX = Math.Round(Math.Abs(x - prevX), 5, mid);
+    double deltaX = Math.Round(Math.Abs(x - prevX), 5);
     Console.Write($"|x{i} - x{i - 1}| = |{x} - {prevX}| = {deltaX}");
     if (deltaX >= e) // проверка на выполнение заданной точности
     {
         Console.WriteLine($" >= {e}");
         Console.WriteLine("Заданная точность не достигнута\n");
         i++;
-        chord(nextRange[0], newAName, nextRange[1], newBName, e, x, i);
+        secant(nextRange[0], newAName, nextRange[1], newBName, e, x, i);
     }
     else if (deltaX < e)
     {
@@ -188,13 +268,12 @@ void kasa(double a, string aName, double b, string bName, double e, double prevX
 {
     string newAName = "";
     string newBName = "";
-    double prevXDer = fi(prevX);
-    prevXDer = Math.Round(prevXDer, acc, mid);
-    double x = prevX - (f(prevX) / prevXDer);
-    x = Math.Round(x, acc, mid);
     string xName = $"x{i}";
-    Console.WriteLine($"{xName} = {x}");
+    double prevXDer = Math.Round(firstDiffF(prevX), acc);
+    double x = Math.Round(prevX - (f(prevX) / prevXDer), acc);
     double fX = f(x);
+
+    Console.WriteLine($"{xName} = {x}");
     Console.Write($"f({xName}) = f({x}) = {fX}");
     if (fX > 0)
     {
@@ -258,7 +337,7 @@ void kasa(double a, string aName, double b, string bName, double e, double prevX
     }
 
     Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
-    double deltaX = Math.Round(Math.Abs(x - prevX), 5, mid);
+    double deltaX = Math.Round(Math.Abs(x - prevX), 5);
     Console.Write($"|x{i} - x{i - 1}| = |{x} - {prevX}| = {deltaX}");
     if (deltaX >= e) // проверка на выполнение заданной точности
     {

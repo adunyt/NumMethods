@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="MathNet.Symbolics" Version="0.24.0" />
+    <PackageReference Include="Spectre.Console" Version="0.45.0" />
   </ItemGroup>
 
 </Project>
