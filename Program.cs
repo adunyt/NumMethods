@@ -21,7 +21,7 @@ while (isRunning)
         {
             var textF = Expr.Parse(userInput).Compile("x");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             result = ValidationResult.Error($"[red]Не могу обработать уравнение[/]");
         }
