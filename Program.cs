@@ -7,9 +7,9 @@ int acc;
 double e;
 int i = 1;
 bool isRunning = true;
-Func<double, double> f;
-Func<double, double> firstDiffF; // первая производная
-Func<double, double> secondDiffF; // вторая производная
+Func<double, double> f = Expr.Parse("x").Compile("x"); // заглушки
+Func<double, double> firstDiffF = Expr.Parse("x").Compile("x"); 
+Func<double, double> secondDiffF = Expr.Parse("x").Compile("x");
 
 while (isRunning)
 {
@@ -66,22 +66,22 @@ while (isRunning)
             .Title("Какой метод хотите использовать?")
             .PageSize(5)
             .AddChoices(new[] {
-            "Половинного деления", "Хорд", "Касательных", "Ньютона"
+            "Половинного деления", "Хорд", "Касательных (Ньютона)", "Комбинированный"
             }));
 
         switch (method)
         {
             case "Половинного деления":
-                bi(a, "a", b, "b", e, i);
+                bisection(a, "a", b, "b", e, i);
                 break;
             case "Хорд":
                 secant(a, "a", b, "b", e, b, i);
                 break;
-            case "Касательных":
-                Console.WriteLine("Пока нет");
-                //kasa(a, "a", b, "b", e, b, i);
+            case "Касательных (Ньютона)":
+                double x0 = selectX0(a, b);
+                newton(a, "a", b, "b", e, x0, i);
                 break;
-            case "Ньютона":
+            case "Комбинированный":
                 Console.WriteLine("Пока нет");
                 break;
         }
@@ -91,6 +91,24 @@ while (isRunning)
     if (!restart)
     {
         isRunning = false;
+    }
+}
+
+double selectX0(double a, double b)
+{
+    var aResult = f(a) * secondDiffF(a);
+    if (aResult > 0)
+    {
+        return a;
+    }
+    var bResult = f(b) * secondDiffF(b);
+    if (bResult > 0)
+    {
+        return b;
+    }
+    else
+    {
+        throw new Exception("Невозможно определить начальную точку");
     }
 }
 
@@ -110,7 +128,7 @@ bool canUse(double a, double b)
     }
 }
 
-void bi(double a, string aName, double b, string bName, double e, int i)
+void bisection(double a, string aName, double b, string bName, double e, int i)
 {
     string newAName = "";
     string newBName = "";
@@ -167,7 +185,7 @@ void bi(double a, string aName, double b, string bName, double e, int i)
         Console.WriteLine($" >= {e}");
         Console.WriteLine("Заданная точность не достигнута\n");
         i++;
-        bi(nextRange[0], newAName, nextRange[1], newBName, e, i);
+        bisection(nextRange[0], newAName, nextRange[1], newBName, e, i);
     }
     else if (Math.Round(nextRange[1] - nextRange[0], 5) < e)
     {
@@ -264,7 +282,7 @@ void secant(double a, string aName, double b, string bName, double e, double pre
     }
 }
 
-void kasa(double a, string aName, double b, string bName, double e, double prevX, int i)
+void newton(double a, string aName, double b, string bName, double e, double prevX, int i)
 {
     string newAName = "";
     string newBName = "";
@@ -344,7 +362,7 @@ void kasa(double a, string aName, double b, string bName, double e, double prevX
         Console.WriteLine($" >= {e}");
         Console.WriteLine("Заданная точность не достигнута\n");
         i++;
-        kasa(nextRange[0], newAName, nextRange[1], newBName, e, x, i);
+        newton(nextRange[0], newAName, nextRange[1], newBName, e, x, i);
     }
     else if (deltaX < e)
     {
