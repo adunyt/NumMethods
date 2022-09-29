@@ -7,8 +7,9 @@ int acc;
 double e;
 int i = 1;
 bool isRunning = true;
+Expr fExpr = Expr.Parse("x");
 Func<double, double> f = Expr.Parse("x").Compile("x"); // заглушки
-Func<double, double> firstDiffF = Expr.Parse("x").Compile("x"); 
+Func<double, double> firstDiffF = Expr.Parse("x").Compile("x");
 Func<double, double> secondDiffF = Expr.Parse("x").Compile("x");
 
 while (isRunning)
@@ -30,7 +31,8 @@ while (isRunning)
     Expr funcX = Expr.Parse(userInput);
     f = funcX.Compile("x");
     AnsiConsole.Status()
-        .Start("Вычисляем производные...", ctx => {
+        .Start("Вычисляем производные...", ctx =>
+        {
             ctx.SpinnerStyle(Style.Parse("blue"));
             var firstDiffFExpr = funcX.Differentiate("x");
             firstDiffFExpr.ToString();
@@ -72,14 +74,14 @@ while (isRunning)
         switch (method)
         {
             case "Половинного деления":
-                bisection(a, "a", b, "b", e, i);
+                main(Methods.Bisection, a, "a", b, "b", 0, e, i); // 0 потому что не используется
                 break;
             case "Хорд":
-                secant(a, "a", b, "b", e, b, i);
+                main(Methods.Secant, a, "a", b, "b", b, e, i);
                 break;
             case "Касательных (Ньютона)":
                 double x0 = selectX0(a, b);
-                newton(a, "a", b, "b", e, x0, i);
+                main(Methods.Newton, a, "a", b, "b", x0, e, i);
                 break;
             case "Комбинированный":
                 Console.WriteLine("Пока нет");
@@ -128,97 +130,53 @@ bool canUse(double a, double b)
     }
 }
 
-void bisection(double a, string aName, double b, string bName, double e, int i)
+double calcX(Methods method, double aValue, double bValue, double prevXValue, double i, string aName, string bName)
 {
-    string newAName = "";
-    string newBName = "";
-    double c = Math.Round((a + b) / 2, acc);
-    string cName = $"c{i}";
-    Console.WriteLine($"{cName} = {aName}+{bName} / 2 = {a}+{b} / 2 = {c}");
-    double fX = Math.Round(f(c), acc);
-    Console.Write($"f({cName}) = f({c}) = {fX}");
-    if (fX > 0)
+    string xName = $"x{i}";
+    string prevXName = $"x{i-1}";
+    double x;
+    switch (method)
     {
-        Console.WriteLine(" > 0");
+        case Methods.Bisection:
+            x = (aValue + bValue) / 2;
+            Console.WriteLine($"{xName} = {aName}+{bName} / 2 = {aValue}+{bValue} / 2 = {x}");
+            break;
+        case Methods.Secant:
+            x = aValue - (((bValue - aValue) * f(aValue) / (f(bValue) - f(aValue))));
+            Console.WriteLine($"{xName} = {aValue} - ((({bValue} - {aValue}) * f({aValue}) / (f({bValue}) - f({aValue})))) = {aValue} - ((({bValue - aValue}) * {f(aValue)} / ({f(bValue)} - {f(aValue)}))) = {x}");
+            break;
+        case Methods.Newton:
+            x = prevXValue - (f(prevXValue) / firstDiffF(prevXValue));
+            Console.WriteLine($"{xName} = {prevXValue} - (f({prevXValue}) / f'({prevXValue})) = {prevXValue} - ({f(prevXValue)} / {firstDiffF(prevXValue)}) = {x}");
+            break;
+        case Methods.Mixed:
+            x = 0;
+            break;
+        default:
+            x = 0;
+            break;
     }
-    else
-    {
-        Console.WriteLine(" < 0");
-    }
-    double[] range1 = new double[2] { a, c }; // первый отрезок изоляция
-    double[] range2 = new double[2] { c, b }; // второй отрезок изоляции
-    double[] nextRange = Array.Empty<double>();
-    string nextRangeDesc = "";
-    Console.WriteLine($"[{range1[0]}, {range1[1]}] и [{range2[0]}, {range2[1]}]");
-    double condition1 = f(range1[0]) * f(range1[1]);
-    Console.Write($"f({aName}) f({cName})");
-    if (condition1 < 0) // проверка на выполнения условия первым отрезком изоляции
-    {
-        Console.WriteLine($" < 0 - условие выполняется на [{range1[0]}, {range1[1]}]");
-        nextRange = range1;
-        nextRangeDesc = $"{aName} - {cName}";
-        newAName = aName;
-        newBName = cName;
-    }
-    else
-    {
-        Console.WriteLine($" > 0 - условие не выполняется на [{range1[0]}, {range1[1]}]");
-    }
-    double condition2 = f(range2[0]) * f(range2[1]);
-    Console.Write($"f({cName}) f({bName})");
-    if (condition2 < 0) // проверка на выполнения условия вторым отрезком изоляции
-    {
-        Console.WriteLine($" < 0 - условие выполняется на [{range2[0]}, {range2[1]}]");
-        nextRange = range2;
-        nextRangeDesc = $"{cName} - {bName}";
-        newAName = cName;
-        newBName = bName;
-    }
-    else
-    {
-        Console.WriteLine($" > 0 - условие не выполняется на [{range2[0]}, {range2[1]}]");
-    }
-    Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
-    Console.Write($"\t |{nextRangeDesc}| = |{nextRange[1]} - {nextRange[0]}| = {Math.Round(nextRange[1] - nextRange[0], 5)}");
-    if (Math.Round(nextRange[1] - nextRange[0], 5) >= e) // проверка на выполнение заданной точности
-    {
-        Console.WriteLine($" >= {e}");
-        Console.WriteLine("Заданная точность не достигнута\n");
-        i++;
-        bisection(nextRange[0], newAName, nextRange[1], newBName, e, i);
-    }
-    else if (Math.Round(nextRange[1] - nextRange[0], 5) < e)
-    {
-        Console.WriteLine($" < {e}");
-        Console.WriteLine($"x = {c}");
-    }
+    return x;
 }
 
-void secant(double a, string aName, double b, string bName, double e, double prevX, int i)
+void main(Methods method, double a, string aName, double b, string bName, double prevX, double e, int i)
 {
     string newAName = "";
     string newBName = "";
     string xName = $"x{i}";
-    double x = a - (((b - a) * f(a)) / (f(b) - f(a)));
+    string nextRangeDesc = "";
+
+    double x = calcX(method, a, b, prevX, i, aName, bName);
     x = Math.Round(x, acc);
-    double fX = Math.Round(f(x), acc);
-    Console.WriteLine($"{xName} = {x}");
-    Console.Write($"f({xName}) = f({x}) = {fX}");
-    if (fX > 0)
-    {
-        Console.WriteLine(" > 0");
-    }
-    else
-    {
-        Console.WriteLine(" < 0");
-    }
 
+    double fX = Math.Round(f(x), acc);
+    Console.Write($"f({xName}) = f({x}) = {fX}");
+    if (fX > 0) Console.WriteLine(" > 0");
+    else Console.WriteLine(" < 0");
     double[] range1 = new double[2] { a, x }; // первый отрезок изоляция
     double[] range2 = new double[2] { x, b }; // второй отрезок изоляции
     double[] nextRange = Array.Empty<double>();
-    string nextRangeDesc = "";
     Console.WriteLine($"[{range1[0]}, {range1[1]}] и [{range2[0]}, {range2[1]}]");
-
     double condition1 = f(range1[0]) * f(range1[1]);
     Console.Write($"f({aName}) f({xName})");
     if (condition1 < 0) // проверка на выполнения условия первым отрезком изоляции
@@ -227,21 +185,12 @@ void secant(double a, string aName, double b, string bName, double e, double pre
         nextRange = range1;
         nextRangeDesc = $"{aName} - {xName}";
         newAName = aName;
-        newBName = xName; // не меняется
-    }
-    else if (condition1 == 0)
-    {
-        Console.WriteLine($" < 0 - условие условно выполняется на [{range1[0]}, {range1[1]}]");
-        nextRange = range1;
-        nextRangeDesc = $"{aName} - {xName}";
-        newAName = aName;
-        newBName = xName; // не меняется
+        newBName = xName;
     }
     else
     {
         Console.WriteLine($" > 0 - условие не выполняется на [{range1[0]}, {range1[1]}]");
     }
-
     double condition2 = f(range2[0]) * f(range2[1]);
     Console.Write($"f({xName}) f({bName})");
     if (condition2 < 0) // проверка на выполнения условия вторым отрезком изоляции
@@ -250,123 +199,47 @@ void secant(double a, string aName, double b, string bName, double e, double pre
         nextRange = range2;
         nextRangeDesc = $"{xName} - {bName}";
         newAName = xName;
-        newBName = bName; // не меняется
-    }
-    else if (condition2 == 0)
-    {
-        Console.WriteLine($" < 0 - условие условно выполняется на [{range2[0]}, {range2[1]}]");
-        nextRange = range2;
-        nextRangeDesc = $"{xName} - {bName}";
-        newAName = xName;
-        newBName = bName; // не меняется
+        newBName = bName;
     }
     else
     {
         Console.WriteLine($" > 0 - условие не выполняется на [{range2[0]}, {range2[1]}]");
     }
-
     Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
-    double deltaX = Math.Round(Math.Abs(x - prevX), 5);
-    Console.Write($"|x{i} - x{i - 1}| = |{x} - {prevX}| = {deltaX}");
-    if (deltaX >= e) // проверка на выполнение заданной точности
+    bool isX = false;
+    switch (method)
+    {
+        case Methods.Bisection:
+            isX = Math.Round(nextRange[1] - nextRange[0], 5) < e;
+            Console.Write($"\t |{nextRangeDesc}| = |{nextRange[1]} - {nextRange[0]}| = {Math.Round(nextRange[1] - nextRange[0], 5)}");
+            break;
+        case Methods.Secant:
+        case Methods.Newton:
+            isX = Math.Round(Math.Abs(x - prevX), 5) < e;
+            Console.Write($"|x{i} - x{i - 1}| = |{x} - {prevX}| = {Math.Round(Math.Abs(x - prevX), 5)}");
+            break;
+        case Methods.Mixed:
+            break;
+    }
+
+    if (!isX) // проверка на выполнение заданной точности
     {
         Console.WriteLine($" >= {e}");
         Console.WriteLine("Заданная точность не достигнута\n");
         i++;
-        secant(nextRange[0], newAName, nextRange[1], newBName, e, x, i);
+        main(method, nextRange[0], newAName, nextRange[1], newBName, x, e, i);
     }
-    else if (deltaX < e)
+    else if (isX)
     {
         Console.WriteLine($" < {e}");
         Console.WriteLine($"x = {x}");
     }
 }
 
-void newton(double a, string aName, double b, string bName, double e, double prevX, int i)
+enum Methods
 {
-    string newAName = "";
-    string newBName = "";
-    string xName = $"x{i}";
-    double prevXDer = Math.Round(firstDiffF(prevX), acc);
-    double x = Math.Round(prevX - (f(prevX) / prevXDer), acc);
-    double fX = f(x);
-
-    Console.WriteLine($"{xName} = {x}");
-    Console.Write($"f({xName}) = f({x}) = {fX}");
-    if (fX > 0)
-    {
-        Console.WriteLine(" > 0");
-    }
-    else
-    {
-        Console.WriteLine(" < 0");
-    }
-
-    double[] range1 = new double[2] { a, x }; // первый отрезок изоляция
-    double[] range2 = new double[2] { x, b }; // второй отрезок изоляции
-    double[] nextRange = Array.Empty<double>();
-    string nextRangeDesc = "";
-    Console.WriteLine($"[{range1[0]}, {range1[1]}] и [{range2[0]}, {range2[1]}]");
-
-    double condition1 = f(range1[0]) * f(range1[1]);
-    Console.Write($"f({aName}) f({xName})");
-    if (condition1 < 0) // проверка на выполнения условия первым отрезком изоляции
-    {
-        Console.WriteLine($" < 0 - условие выполняется на [{range1[0]}, {range1[1]}]");
-        nextRange = range1;
-        nextRangeDesc = $"{aName} - {xName}";
-        newAName = aName;
-        newBName = xName;
-    }
-    else if (condition1 == 0)
-    {
-        Console.WriteLine($" < 0 - условие условно выполняется на [{range1[0]}, {range1[1]}]");
-        nextRange = range1;
-        nextRangeDesc = $"{aName} - {xName}";
-        newAName = aName;
-        newBName = xName;
-    }
-    else
-    {
-        Console.WriteLine($" > 0 - условие не выполняется на [{range1[0]}, {range1[1]}]");
-    }
-
-    double condition2 = f(range2[0]) * f(range2[1]);
-    Console.Write($"f({xName}) f({bName})");
-    if (condition2 < 0) // проверка на выполнения условия вторым отрезком изоляции
-    {
-        Console.WriteLine($" < 0 - условие выполняется на [{range2[0]}, {range2[1]}]");
-        nextRange = range2;
-        nextRangeDesc = $"{xName} - {bName}";
-        newAName = xName;
-        newBName = bName;
-    }
-    else if (condition2 == 0)
-    {
-        Console.WriteLine($" < 0 - условие условно выполняется на [{range2[0]}, {range2[1]}]");
-        nextRange = range2;
-        nextRangeDesc = $"{xName} - {bName}";
-        newAName = xName;
-        newBName = bName;
-    }
-    else
-    {
-        Console.WriteLine($" > 0 - условие не выполняется на [{range2[0]}, {range2[1]}]");
-    }
-
-    Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
-    double deltaX = Math.Round(Math.Abs(x - prevX), 5);
-    Console.Write($"|x{i} - x{i - 1}| = |{x} - {prevX}| = {deltaX}");
-    if (deltaX >= e) // проверка на выполнение заданной точности
-    {
-        Console.WriteLine($" >= {e}");
-        Console.WriteLine("Заданная точность не достигнута\n");
-        i++;
-        newton(nextRange[0], newAName, nextRange[1], newBName, e, x, i);
-    }
-    else if (deltaX < e)
-    {
-        Console.WriteLine($" < {e}");
-        Console.WriteLine($"x = {x}");
-    }
+    Bisection,
+    Secant,
+    Newton,
+    Mixed
 }
