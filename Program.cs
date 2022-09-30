@@ -135,18 +135,23 @@ double calcX(Methods method, double aValue, double bValue, double prevXValue, do
     string xName = $"x{i}";
     string prevXName = $"x{i-1}";
     double x;
+    double fA = Math.Round(f(aValue), acc);
+    double fB = Math.Round(f(bValue), acc);
     switch (method)
     {
         case Methods.Bisection:
             x = (aValue + bValue) / 2;
+            x = Math.Round(x, acc);
             Console.WriteLine($"{xName} = {aName}+{bName} / 2 = {aValue}+{bValue} / 2 = {x}");
             break;
         case Methods.Secant:
-            x = aValue - (((bValue - aValue) * f(aValue) / (f(bValue) - f(aValue))));
-            Console.WriteLine($"{xName} = {aValue} - ((({bValue} - {aValue}) * f({aValue}) / (f({bValue}) - f({aValue})))) = {aValue} - ((({bValue - aValue}) * {f(aValue)} / ({f(bValue)} - {f(aValue)}))) = {x}");
+            x = aValue - (((bValue - aValue) * fA / (fB - fA)));
+            x = Math.Round(x, acc);
+            Console.WriteLine($"{xName} = {aValue} - (({bValue} - {aValue}) * f({aValue} / (f({bValue}) - f({aValue}) )) = {aValue} - ({Math.Round(bValue - aValue, acc)} * {fA} / ({fB} - {fA})) = {x}");
             break;
         case Methods.Newton:
             x = prevXValue - (f(prevXValue) / firstDiffF(prevXValue));
+            x = Math.Round(x, acc);
             Console.WriteLine($"{xName} = {prevXValue} - (f({prevXValue}) / f'({prevXValue})) = {prevXValue} - ({f(prevXValue)} / {firstDiffF(prevXValue)}) = {x}");
             break;
         case Methods.Mixed:
@@ -167,7 +172,6 @@ void main(Methods method, double a, string aName, double b, string bName, double
     string nextRangeDesc = "";
 
     double x = calcX(method, a, b, prevX, i, aName, bName);
-    x = Math.Round(x, acc);
 
     double fX = Math.Round(f(x), acc);
     Console.Write($"f({xName}) = f({x}) = {fX}");
