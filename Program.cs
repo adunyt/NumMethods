@@ -68,7 +68,7 @@ while (isRunning)
             .Title("Какой метод хотите использовать?")
             .PageSize(5)
             .AddChoices(new[] {
-            "Половинного деления", "Хорд", "Касательных (Ньютона)", "Комбинированный"
+            "Половинного деления", "Хорд", "Касательных (Ньютона)"
             }));
 
         switch (method)
@@ -82,9 +82,6 @@ while (isRunning)
             case "Касательных (Ньютона)":
                 double x0 = selectX0(a, b);
                 main(Methods.Newton, a, "a", b, "b", x0, e, i);
-                break;
-            case "Комбинированный":
-                Console.WriteLine("Пока нет");
                 break;
         }
     }
@@ -152,40 +149,45 @@ double calcX(Methods method, double aValue, double bValue, double prevXValue, do
         case Methods.Newton:
             x = prevXValue - (f(prevXValue) / firstDiffF(prevXValue));
             x = Math.Round(x, acc);
-            Console.WriteLine($"{xName} = {prevXValue} - (f({prevXValue}) / f'({prevXValue})) = {prevXValue} - ({f(prevXValue)} / {firstDiffF(prevXValue)}) = {x}");
-            break;
-        case Methods.Mixed:
-            x = 0;
+            Console.WriteLine($"{xName} = {prevXValue} - (f({prevXValue}) / f'({prevXValue})) = {prevXValue} - ({Math.Round(f(prevXValue), acc)} / {Math.Round(firstDiffF(prevXValue), acc)}) = {x}");
             break;
         default:
-            x = 0;
-            break;
+            throw new ArgumentException($"Поведение для метода {method} не определено");
     }
     return x;
 }
 
 void main(Methods method, double a, string aName, double b, string bName, double prevX, double e, int i)
 {
-    string newAName = "";
-    string newBName = "";
+    // === Обнуляем переменные, меняем номер текущей итерации у x ===
     string xName = $"x{i}";
-    string nextRangeDesc = "";
+    string newAName = string.Empty;
+    string newBName = string.Empty;
+    string nextRangeDesc = string.Empty;
 
+    // === вычисление x в зависимости от выбранного метода ===
     double x = calcX(method, a, b, prevX, i, aName, bName);
 
     double fX = Math.Round(f(x), acc);
+
     Console.Write($"f({xName}) = f({x}) = {fX}");
     if (fX > 0) Console.WriteLine(" > 0");
     else Console.WriteLine(" < 0");
+
     double[] range1 = new double[2] { a, x }; // первый отрезок изоляция
     double[] range2 = new double[2] { x, b }; // второй отрезок изоляции
     double[] nextRange = Array.Empty<double>();
+
     Console.WriteLine($"[{range1[0]}, {range1[1]}] и [{range2[0]}, {range2[1]}]");
-    double condition1 = f(range1[0]) * f(range1[1]);
     Console.Write($"f({aName}) f({xName})");
+
+    // === вывод значения функции первого отрезка ===
+    double condition1 = f(range1[0]) * f(range1[1]);
     if (condition1 < 0) // проверка на выполнения условия первым отрезком изоляции
     {
         Console.WriteLine($" < 0 - условие выполняется на [{range1[0]}, {range1[1]}]");
+
+        // определяем новый отрезок
         nextRange = range1;
         nextRangeDesc = $"{aName} - {xName}";
         newAName = aName;
@@ -195,11 +197,16 @@ void main(Methods method, double a, string aName, double b, string bName, double
     {
         Console.WriteLine($" > 0 - условие не выполняется на [{range1[0]}, {range1[1]}]");
     }
+
+    // === вывод значения функции второго отрезка ===
+    Console.Write($"f({xName}) f({bName})"); 
+
     double condition2 = f(range2[0]) * f(range2[1]);
-    Console.Write($"f({xName}) f({bName})");
     if (condition2 < 0) // проверка на выполнения условия вторым отрезком изоляции
     {
         Console.WriteLine($" < 0 - условие выполняется на [{range2[0]}, {range2[1]}]");
+
+        // определяем новый отрезок
         nextRange = range2;
         nextRangeDesc = $"{xName} - {bName}";
         newAName = xName;
@@ -209,8 +216,11 @@ void main(Methods method, double a, string aName, double b, string bName, double
     {
         Console.WriteLine($" > 0 - условие не выполняется на [{range2[0]}, {range2[1]}]");
     }
+
     Console.WriteLine($"Рассмотрим [{nextRange[0]}, {nextRange[1]}]");
+
     bool isX = false;
+    // === Проверка на выполнение заданной точности ===
     switch (method)
     {
         case Methods.Bisection:
@@ -222,17 +232,17 @@ void main(Methods method, double a, string aName, double b, string bName, double
             isX = Math.Round(Math.Abs(x - prevX), 5) < e;
             Console.Write($"|x{i} - x{i - 1}| = |{x} - {prevX}| = {Math.Round(Math.Abs(x - prevX), 5)}");
             break;
-        case Methods.Mixed:
-            break;
     }
 
-    if (!isX) // проверка на выполнение заданной точности
+    // Если заданная точность не достигнута, вычисляем еще раз
+    if (!isX)
     {
         Console.WriteLine($" >= {e}");
         Console.WriteLine("Заданная точность не достигнута\n");
         i++;
         main(method, nextRange[0], newAName, nextRange[1], newBName, x, e, i);
     }
+    // Если заданная точность достигнута, выводим значение
     else if (isX)
     {
         Console.WriteLine($" < {e}");
@@ -240,10 +250,10 @@ void main(Methods method, double a, string aName, double b, string bName, double
     }
 }
 
+// список доступных методов
 enum Methods
 {
     Bisection,
     Secant,
-    Newton,
-    Mixed
+    Newton
 }
